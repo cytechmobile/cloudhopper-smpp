@@ -1,7 +1,8 @@
 Cloudhopper SMPP (forked from Twitter)
 ======================================
 
-[![Build Status](https://travis-ci.org/cytechmobile/cloudhopper-smpp.svg?branch=netty4-ext)](https://travis-ci.org/cytechmobile/cloudhopper-smpp)
+[![Build Status](https://travis-ci.org/cytechmobile/cloudhopper-smpp.svg?branch=master)](https://travis-ci.org/cytechmobile/cloudhopper-smpp)
+[![Release](https://jitpack.io/v/cytechmobile/cloudhopper-smpp.svg)](https://jitpack.io/#cytechmobile/cloudhopper-smpp)
 
 News
 ------------------------
