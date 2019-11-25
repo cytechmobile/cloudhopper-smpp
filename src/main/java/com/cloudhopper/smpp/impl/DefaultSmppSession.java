@@ -583,6 +583,13 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
         }
     }
 
+    @Override
+    public void sendResponsePdu(PduResponse responsePdu, long processingStartTime) throws RecoverablePduException, UnrecoverablePduException, SmppChannelException, InterruptedException {
+        countSendResponsePduProcessingTime(responsePdu, System.currentTimeMillis() - processingStartTime);
+        sendResponsePdu(responsePdu);
+        countSendResponsePduResponseTime(responsePdu, System.currentTimeMillis() - processingStartTime);
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public void firePduReceived(Pdu pdu) {
@@ -609,11 +616,9 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
             // if the handler returned a non-null object, then we need to send it back on the channel
             if (responsePdu != null) {
                 try {
-                    countSendResponsePduProcessingTime(responsePdu, System.currentTimeMillis() - startTime);
-                    sendResponsePdu(responsePdu);
-                    countSendResponsePduResponseTime(responsePdu, System.currentTimeMillis() - startTime);
+                    sendResponsePdu(responsePdu, startTime);
                 } catch (Exception e) {
-                    logger.error("Unable to cleanly return response PDU: {}", e);
+                    logger.error("Unable to cleanly return response PDU: {}", responsePdu, e);
                 }
             }
         } else {

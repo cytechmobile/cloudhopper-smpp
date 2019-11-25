@@ -337,4 +337,22 @@ public interface SmppSession {
      *      to acquire a lock or write/read the bytes from the socket/channel.
      */
     public void sendResponsePdu(PduResponse response) throws RecoverablePduException, UnrecoverablePduException, SmppChannelException, InterruptedException;
+
+    /**
+     * Similar to sendResponsePdu(PduResponse response), but also receives estimated processing start time, so as to
+     * be able to calculate statistics
+     * @param response The response PDU to send
+     * @param processingStartTime The estimated processing start time of the respective request that resulted in the response PDU to send
+     * @throws RecoverablePduException Thrown when a recoverable PDU error occurs.
+     *      A recoverable PDU error includes the partially decoded PDU in order
+     *      to generate a negative acknowledgment (NACK) response.
+     * @throws UnrecoverablePduException Thrown when an unrecoverable PDU error
+     *      occurs. This indicates a serious error occurred and usually indicates
+     *      the session should be immediately terminated.
+     * @throws SmppChannelException Thrown when the underlying socket/channel was
+     *      unable to write the request.
+     * @throws InterruptedException The calling thread was interrupted while waiting
+     *      to acquire a lock or write/read the bytes from the socket/channel.
+     */
+    public void sendResponsePdu(PduResponse response, long processingStartTime) throws RecoverablePduException, UnrecoverablePduException, SmppChannelException, InterruptedException;
 }
