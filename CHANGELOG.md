@@ -3,6 +3,9 @@ Cloudhopper by Twitter
 
 cloudhopper-smpp
 ----------------
+## 6.0.4
+- Updated netty to 4.1.77.Final
+
 ## 6.0.3
 - Updated netty to 4.1.43.Final
 - Added method to send an async response pdu, which also updates the counters respectively 
