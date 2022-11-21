@@ -3,6 +3,10 @@ Cloudhopper by Twitter
 
 cloudhopper-smpp
 ----------------
+## 7.0.0
+- Updated minimum Java version to 17
+- Updated netty to 4.1.85.Final
+
 ## 6.0.4
 - Updated netty to 4.1.77.Final
 

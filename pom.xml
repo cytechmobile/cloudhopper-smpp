@@ -4,7 +4,7 @@
 	<groupId>com.github.cytechmobile</groupId>
 	<artifactId>cloudhopper-smpp</artifactId>
 	<packaging>jar</packaging>
-	<version>6.0.4</version>
+	<version>7.0.0</version>
 	<name>cloudhopper-smpp</name>
 	<description>Efficient, scalable, and flexible Java implementation of the Short Messaging Peer to Peer Protocol (SMPP)</description>
 	<url>https://github.com/cytechmobile/cloudhopper-smpp</url>
@@ -18,8 +18,8 @@
 	</scm>
 
 	<properties>
-		<maven.compiler.source>1.8</maven.compiler.source>
-		<maven.compiler.target>1.8</maven.compiler.target>
+		<maven.compiler.source>17</maven.compiler.source>
+		<maven.compiler.target>17</maven.compiler.target>
 		<ch-commons-group>com.cloudhopper</ch-commons-group>
 		<ch-commons-util.version>6.0.4</ch-commons-util.version>
 		<ch-commons-charset.version>3.0.2</ch-commons-charset.version>
