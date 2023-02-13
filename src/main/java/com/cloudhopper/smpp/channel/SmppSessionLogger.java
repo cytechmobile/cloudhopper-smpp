@@ -26,6 +26,7 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.netty.util.internal.logging.InternalLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,8 +57,8 @@ public class SmppSessionLogger extends ChannelDuplexHandler {
     }
 
     public SmppSessionLogger(String name, LoggingOptions options) {
-        this.logger = LoggerFactory.getLogger(name);
         this.options = options;
+        this.logger = LoggerFactory.getLogger(options.loggerName != null ? options.loggerName : name);
     }
 
     /**

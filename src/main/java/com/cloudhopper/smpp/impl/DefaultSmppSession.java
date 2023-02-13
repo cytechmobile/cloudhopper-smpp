@@ -83,7 +83,7 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
      * Creates an SmppSession for a server-based session.
      */
     public DefaultSmppSession(Type localType, SmppSessionConfiguration configuration, Channel channel, DefaultSmppServer server, Long serverSessionId, BaseBindResp preparedBindResponse, byte interfaceVersion, ScheduledExecutorService monitorExecutor) {
-        this(localType, configuration, channel, (SmppSessionHandler)null, monitorExecutor);
+        this(localType, configuration, channel, null, monitorExecutor);
         // default state for a server session is that it's binding
         this.state.set(STATE_BINDING);
         this.server = server;
@@ -126,6 +126,7 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
         this.localType = localType;
         this.state = new AtomicInteger(STATE_OPEN);
         this.configuration = configuration;
+        this.logger = LoggerFactory.getLogger(configuration.getLoggingOptions().getLoggerName() != null ? configuration.getLoggingOptions().getLoggerName() : DefaultSmppSession.class.getCanonicalName());
         this.channel = channel;
         this.boundTime = new AtomicLong(0);
         this.sessionHandler = (sessionHandler == null ? new DefaultSmppSessionHandler(logger) : sessionHandler);
@@ -137,9 +138,9 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
         // different ways to construct the window if monitoring is enabled
         if (monitorExecutor != null && configuration.getWindowMonitorInterval() > 0) {
             // enable send window monitoring, verify if the monitoringInterval has been set
-            this.sendWindow = new Window<Integer,PduRequest,PduResponse>(configuration.getWindowSize(), monitorExecutor, configuration.getWindowMonitorInterval(), this, configuration.getName() + ".Monitor");
+            this.sendWindow = new Window<>(configuration.getWindowSize(), monitorExecutor, configuration.getWindowMonitorInterval(), this, configuration.getName() + ".Monitor");
         } else {
-            this.sendWindow = new Window<Integer,PduRequest,PduResponse>(configuration.getWindowSize());
+            this.sendWindow = new Window<>(configuration.getWindowSize());
         }
         
         // these server-only items are null
@@ -173,7 +174,6 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
         }
     }
 
-    @Override
     public void setLogger(Logger logger) {
         this.logger = logger;
     }

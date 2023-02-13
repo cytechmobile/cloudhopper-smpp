@@ -31,6 +31,7 @@ public class LoggingOptions {
     public static final int DEFAULT_LOG_OPTION = LOG_PDU;
 
     private int option;
+    public String loggerName;
 
     public LoggingOptions() {
         this.option = DEFAULT_LOG_OPTION;
@@ -58,5 +59,13 @@ public class LoggingOptions {
 
     public boolean isLogBytesEnabled() {
         return ((this.option & LOG_BYTES) > 0);
+    }
+
+    public String getLoggerName() {
+        return loggerName;
+    }
+
+    public void setLoggerName(String loggerName) {
+        this.loggerName = loggerName;
     }
 }

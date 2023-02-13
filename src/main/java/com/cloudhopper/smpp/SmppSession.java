@@ -22,17 +22,11 @@ package com.cloudhopper.smpp;
 
 import com.cloudhopper.commons.util.windowing.Window;
 import com.cloudhopper.commons.util.windowing.WindowFuture;
+import com.cloudhopper.smpp.pdu.*;
+import com.cloudhopper.smpp.type.RecoverablePduException;
 import com.cloudhopper.smpp.type.SmppChannelException;
 import com.cloudhopper.smpp.type.SmppTimeoutException;
-import com.cloudhopper.smpp.pdu.EnquireLink;
-import com.cloudhopper.smpp.pdu.EnquireLinkResp;
-import com.cloudhopper.smpp.pdu.PduRequest;
-import com.cloudhopper.smpp.pdu.PduResponse;
-import com.cloudhopper.smpp.pdu.SubmitSm;
-import com.cloudhopper.smpp.pdu.SubmitSmResp;
-import com.cloudhopper.smpp.type.RecoverablePduException;
 import com.cloudhopper.smpp.type.UnrecoverablePduException;
-import org.slf4j.Logger;
 
 /**
  * Defines a common interface for either a Client (ESME) or Server (SMSC) SMPP
@@ -356,8 +350,4 @@ public interface SmppSession {
      *      to acquire a lock or write/read the bytes from the socket/channel.
      */
     public void sendResponsePdu(PduResponse response, long processingStartTime) throws RecoverablePduException, UnrecoverablePduException, SmppChannelException, InterruptedException;
-
-    default void setLogger(Logger logger) {
-
-    }
 }
