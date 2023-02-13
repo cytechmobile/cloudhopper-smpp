@@ -55,7 +55,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author joelauer (twitter: @jjlauer or <a href="http://twitter.com/jjlauer" target=window>http://twitter.com/jjlauer</a>)
  */
 public class DefaultSmppSession implements SmppServerSession, SmppSessionChannelListener, WindowListener<Integer,PduRequest,PduResponse>, DefaultSmppSessionMXBean {
-    private static final Logger logger = LoggerFactory.getLogger(DefaultSmppSession.class);
+    protected Logger logger = LoggerFactory.getLogger(DefaultSmppSession.class);
 
     // are we an "esme" or "smsc" session type?
     private final Type localType;
@@ -171,6 +171,11 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
             // log the error, but don't throw an exception for this datasource
             logger.error("Unable to unregister DefaultSmppServerMXBean [{}]", objectName, e);
         }
+    }
+
+    @Override
+    public void setLogger(Logger logger) {
+        this.logger = logger;
     }
         
     @Override
