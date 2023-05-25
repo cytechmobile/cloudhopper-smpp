@@ -24,7 +24,7 @@
 		<ch-commons-util.version>6.0.4</ch-commons-util.version>
 		<ch-commons-charset.version>3.0.2</ch-commons-charset.version>
 		<ch-commons-gsm.version>3.0.0</ch-commons-gsm.version>
-		<netty.version>4.1.92.Final</netty.version>
+		<netty.version>4.1.93.Final</netty.version>
 		<logback.version>1.4.7</logback.version>
 		<junit.version>4.13.2</junit.version>
         <slf4j.version>2.0.7</slf4j.version>
