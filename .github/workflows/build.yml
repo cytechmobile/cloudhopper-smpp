@@ -22,7 +22,7 @@ jobs:
       run: |
         echo "found successful dependabot PR, merging it"
         gh pr merge --auto --merge
-    - name: Create Release
+    - name: Prepare Release
       if: success() && github.ref == 'refs/heads/main'
       run: |
         set -x
