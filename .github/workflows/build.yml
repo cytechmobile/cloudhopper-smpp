@@ -11,7 +11,7 @@ jobs:
       uses: actions/setup-java@v3
       with:
         java-version: 17
-        distribution: 'temurin'
+        distribution: 'corretto'
         cache: 'maven'
     - name: Build with Maven
       run: mvn -B package --file pom.xml
@@ -22,3 +22,93 @@ jobs:
       run: |
         echo "found successful dependabot PR, merging it"
         gh pr merge --auto --merge
+    - name: Create Release
+      if: success() && github.ref == 'refs/heads/main'
+      run: |
+        set -x
+        # find version from pom.xml
+        VERSION=$(mvn -q -B org.apache.maven.plugins:maven-help-plugin:evaluate -Dexpression=project.version -DforceStdout)
+        OLD_VERSION="${VERSION}"
+        # fetch all tags
+        git fetch --all --tags --prune
+        # also make sure we're completely up to date
+        git pull --ff-only || true
+        # check if there's already a tag created with this version
+        exists=$(git tag --list "${VERSION}")
+        while [[ -n "$exists" ]];
+        do
+          echo "There is already a tag for version <${VERSION}> ! Auto-bumping versions!"
+          PATCH=$(echo "$VERSION" | cut -f3 -d'.')
+          NEW_PATCH=$((PATCH+1))
+          MAJOR=$(echo "$VERSION" | cut -f1 -d'.')
+          MINOR=$(echo "$VERSION" | cut -f2 -d'.')
+          
+          NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+          echo "switching version from: $VERSION -> $NEW_VERSION"
+          VERSION="${NEW_VERSION}"
+          ./mvnw -q -B org.codehaus.mojo:versions-maven-plugin:set -DnewVersion="${VERSION}" -DgenerateBackupPoms=false || true
+          # check again if bumped version exists
+          exists=$(git tag --list "${VERSION}")
+        done
+        
+        echo 'Checking if changelog already exists for new version'
+        # taken from: https://stackoverflow.com/questions/40450238/parse-a-changelog-and-extract-changes-for-a-version
+        msg=$(awk -v ver="${VERSION}" '
+        /^## / { if (p) { exit }; if ($2 == ver) { p=1; next } } p && NF
+        ' ./Changelog.md)
+        echo "for version: ${VERSION} extracted changelog messages: ${msg}"
+        if [[ -z "${msg}" ]]; then
+          # we bumped the version without changelog, so add automatic release notes
+          # as the release message, get all commits since last tag (each in a separate line)
+          commits=$(git log $(git describe --tags --abbrev=0)..HEAD --oneline)
+          # prepend each commit message with a *
+          msg=''
+          while IFS= read -r line
+          do
+            msg="${msg}* ${line}
+            "
+          msg="${msg::-4}" # remove trailing spaces
+          # the closing quotes should be there, so that no spaces are added in front of the new line
+          done <<< "${commits}"
+          msg="${msg::-1}" # remove trailing new line
+          file='./Changelog.md.update'
+          echo '# Release Notes' > $file
+          echo '' >> $file
+          echo "## ${VERSION} ($(date -I))" >> $file
+          echo "${msg}" >> $file
+          echo "Created automatic changelog"
+          cat "${file}"
+          grep -v '# Release Notes' ./Changelog.md >> $file
+          mv "$file" ./Changelog.md
+          git add ./Changelog.md
+        fi
+
+        changedFiles=$(git ls-files --deleted --modified --others --exclude-standard)
+        if [[ -n "$changedFiles" ]]; then
+          echo "committing and pushing version changes"
+          # check if we have any changes that we need to push (if we actually changed any version
+          git add ./pom.xml
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "Automatically bumped version to ${VERSION}"
+          git push
+          # do not exit with an error, as the push using the gh bot token does not generate a new build
+          # exit 2
+        fi
+        # release notes are certainly multiline, so use the proper way to set as env var: 
+        # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#example-7 
+        #echo "RELEASE_NOTES_TEXT=${msg}" >> $GITHUB_ENV
+        echo 'RELEASE_NOTES_TEXT<<EOF' >> $GITHUB_ENV
+        echo "${msg}" >> $GITHUB_ENV
+        echo 'EOF' >> $GITHUB_ENV
+        echo "VERSION=${VERSION}" >> $GITHUB_ENV
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      if: success() && github.ref == 'refs/heads/main'
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        tag_name: ${{ env.VERSION }}
+        name: Release ${{ env.VERSION }}
+        body: ${{ env.RELEASE_NOTES_TEXT }}
+        draft: false
+        prerelease: false
