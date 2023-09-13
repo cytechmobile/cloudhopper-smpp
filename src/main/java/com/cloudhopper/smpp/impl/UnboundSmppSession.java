@@ -140,7 +140,7 @@ public class UnboundSmppSession implements SmppSessionChannelListener {
 
     @Override
     public void fireExceptionThrown(Throwable t) {
-        logger.warn("Exception thrown, closing connection [{}]: {}", channelName, t);
+        logger.warn("Exception thrown, closing connection [{}]: {}", channelName, t.getMessage());
         closeChannelAndCancelTimer();
     }
 
@@ -203,7 +203,7 @@ public class UnboundSmppSession implements SmppSessionChannelListener {
 		else throw new SmppChannelException("ChannelFuture failed without cause.");
             }
         } catch (Exception e) {
-            logger.error("Fatal exception thrown while attempting to send response PDU: {}", e);
+            logger.error("Fatal exception thrown while attempting to send response PDU: {}", e.getMessage());
         }
     }
 

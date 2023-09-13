@@ -83,13 +83,8 @@ public class SmppSessionLogger extends ChannelDuplexHandler {
      */
     protected void log(Direction direction, Object obj) {
         // handle logging of message events (PDU, ByteBuf, etc.)
-        if ((obj instanceof ByteBuf) && this.options.isLogBytesEnabled()) {
-            ByteBuf buffer = (ByteBuf) obj;
-            if (direction == Direction.UP) {
-                logger.info("read bytes: [{}]", ByteBufUtil.hexDump(buffer));
-            } else if (direction == Direction.DOWN) {
-                logger.info("write bytes: [{}]", ByteBufUtil.hexDump(buffer));
-            }
+        if (this.options.isLogBytesEnabled() && obj instanceof ByteBuf buffer) {
+            logger.info("{} bytes: [{}]", direction == Direction.UP ? "read" : "write", ByteBufUtil.hexDump(buffer));
         }
     }
 
