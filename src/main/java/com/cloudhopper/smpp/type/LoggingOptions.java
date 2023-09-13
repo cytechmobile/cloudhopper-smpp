@@ -20,45 +20,47 @@ package com.cloudhopper.smpp.type;
  * #L%
  */
 
+import com.cloudhopper.smpp.pdu.Pdu;
+
+import java.util.Set;
+
 /**
  *
  * @author joelauer (twitter: @jjlauer or <a href="http://twitter.com/jjlauer" target=window>http://twitter.com/jjlauer</a>)
  */
 public class LoggingOptions {
-
-    public static final int LOG_PDU = 0x00000001;
-    public static final int LOG_BYTES = 0x00000002;
-    public static final int DEFAULT_LOG_OPTION = LOG_PDU;
-
-    private int option;
+    private boolean logPdu;
+    private boolean logBytes;
     public String loggerName;
+    private Set<Integer> excludeLogPdus;
 
     public LoggingOptions() {
-        this.option = DEFAULT_LOG_OPTION;
+        this.logPdu = true;
+        this.logBytes = false;
     }
 
     public void setLogPdu(boolean value) {
-        if (value) {
-            this.option |= LOG_PDU;
-        } else {
-            this.option &= ~LOG_PDU;
-        }
+        this.logPdu = value;
     }
 
     public boolean isLogPduEnabled() {
-        return ((this.option & LOG_PDU) > 0);
+        return this.logPdu;
+    }
+
+    public boolean isLogPduEnabled(int commandId) {
+        return this.logPdu && (this.excludeLogPdus == null || !this.excludeLogPdus.contains(commandId));
+    }
+
+    public boolean isLogPduEnabled(Pdu pdu) {
+        return pdu != null && this.isLogPduEnabled(pdu.getCommandId());
     }
 
     public void setLogBytes(boolean value) {
-        if (value) {
-            this.option |= LOG_BYTES;
-        } else {
-            this.option &= ~LOG_BYTES;
-        }
+        this.logBytes = value;
     }
 
     public boolean isLogBytesEnabled() {
-        return ((this.option & LOG_BYTES) > 0);
+        return this.logBytes;
     }
 
     public String getLoggerName() {
@@ -67,5 +69,13 @@ public class LoggingOptions {
 
     public void setLoggerName(String loggerName) {
         this.loggerName = loggerName;
+    }
+
+    public Set<Integer> getExcludeLogPdus() {
+        return excludeLogPdus;
+    }
+
+    public void setExcludeLogPdus(Set<Integer> excludeLogPdus) {
+        this.excludeLogPdus = excludeLogPdus;
     }
 }

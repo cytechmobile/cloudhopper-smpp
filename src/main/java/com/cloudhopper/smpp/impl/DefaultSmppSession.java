@@ -21,16 +21,39 @@ package com.cloudhopper.smpp.impl;
  */
 
 import com.cloudhopper.commons.util.PeriodFormatterUtil;
-import com.cloudhopper.commons.util.windowing.*;
-import com.cloudhopper.smpp.*;
+import com.cloudhopper.commons.util.windowing.DuplicateKeyException;
+import com.cloudhopper.commons.util.windowing.OfferTimeoutException;
+import com.cloudhopper.commons.util.windowing.Window;
+import com.cloudhopper.commons.util.windowing.WindowFuture;
+import com.cloudhopper.commons.util.windowing.WindowListener;
+import com.cloudhopper.smpp.SmppBindType;
+import com.cloudhopper.smpp.SmppConstants;
+import com.cloudhopper.smpp.SmppServerSession;
+import com.cloudhopper.smpp.SmppSessionConfiguration;
+import com.cloudhopper.smpp.SmppSessionCounters;
+import com.cloudhopper.smpp.SmppSessionHandler;
+import com.cloudhopper.smpp.SmppSessionListener;
 import com.cloudhopper.smpp.jmx.DefaultSmppSessionMXBean;
-import com.cloudhopper.smpp.pdu.*;
+import com.cloudhopper.smpp.pdu.BaseBind;
+import com.cloudhopper.smpp.pdu.BaseBindResp;
+import com.cloudhopper.smpp.pdu.EnquireLink;
+import com.cloudhopper.smpp.pdu.EnquireLinkResp;
+import com.cloudhopper.smpp.pdu.Pdu;
+import com.cloudhopper.smpp.pdu.PduRequest;
+import com.cloudhopper.smpp.pdu.PduResponse;
+import com.cloudhopper.smpp.pdu.SubmitSm;
+import com.cloudhopper.smpp.pdu.SubmitSmResp;
+import com.cloudhopper.smpp.pdu.Unbind;
 import com.cloudhopper.smpp.tlv.Tlv;
 import com.cloudhopper.smpp.tlv.TlvConvertException;
 import com.cloudhopper.smpp.transcoder.DefaultPduTranscoder;
 import com.cloudhopper.smpp.transcoder.DefaultPduTranscoderContext;
 import com.cloudhopper.smpp.transcoder.PduTranscoder;
-import com.cloudhopper.smpp.type.*;
+import com.cloudhopper.smpp.type.RecoverablePduException;
+import com.cloudhopper.smpp.type.SmppBindException;
+import com.cloudhopper.smpp.type.SmppChannelException;
+import com.cloudhopper.smpp.type.SmppTimeoutException;
+import com.cloudhopper.smpp.type.UnrecoverablePduException;
 import com.cloudhopper.smpp.util.SequenceNumber;
 import com.cloudhopper.smpp.util.SmppSessionUtil;
 import com.cloudhopper.smpp.util.SmppUtil;
@@ -44,7 +67,6 @@ import javax.management.ObjectName;
 import java.lang.management.ManagementFactory;
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
-import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -508,12 +530,8 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
 
         // we need to log the PDU after encoding since some things only happen
         // during the encoding process such as looking up the result message
-        if (configuration.getLoggingOptions().isLogPduEnabled()) {
-            if (synchronous) {
-                logger.info("sync send PDU: {}", pdu);
-            } else {
-                logger.info("async send PDU: {}", pdu);
-            }
+        if (configuration.getLoggingOptions().isLogPduEnabled(pdu)) {
+            logger.info("{} send PDU: {}", synchronous ? "sync" : "async", pdu);
         }
 
         // write the pdu out & wait timeout amount of time
@@ -566,7 +584,7 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
 
         // we need to log the PDU after encoding since some things only happen
         // during the encoding process such as looking up the result message
-        if (configuration.getLoggingOptions().isLogPduEnabled()) {
+        if (configuration.getLoggingOptions().isLogPduEnabled(pdu)) {
             logger.info("send PDU: {}", pdu);
         }
 
@@ -595,24 +613,21 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
         countSendResponsePduResponseTime(responsePdu, System.currentTimeMillis() - processingStartTime);
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public void firePduReceived(Pdu pdu) {
-        if (configuration.getLoggingOptions().isLogPduEnabled()) {
+        if (configuration.getLoggingOptions().isLogPduEnabled(pdu)) {
             logger.info("received PDU: {}", pdu);
         }
 
         if(this.sessionHandler instanceof SmppSessionListener) {
             if(!((SmppSessionListener)this.sessionHandler).firePduReceived(pdu)){
-                logger.info("recieved PDU discarded: {}", pdu);
+                logger.info("received PDU discarded: {}", pdu);
                 return;
             }
         }
 
-        if (pdu instanceof PduRequest) {
+        if (pdu instanceof PduRequest<?> requestPdu) {
             // process this request and allow the handler to return a result
-            PduRequest requestPdu = (PduRequest)pdu;
-            
             this.countReceiveRequestPdu(requestPdu);
             
             long startTime = System.currentTimeMillis();
@@ -633,7 +648,7 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
             
             try {
                 // see if a correlating request exists in the window
-                WindowFuture<Integer,PduRequest,PduResponse> future = this.sendWindow.complete(receivedPduSeqNum, responsePdu);
+                var future = this.sendWindow.complete(receivedPduSeqNum, responsePdu);
                 if (future != null) {
                     logger.trace("Found a future in the window for seqNum [{}]", receivedPduSeqNum);
                     this.countReceiveResponsePdu(responsePdu, future.getOfferToAcceptTime(), future.getAcceptToDoneTime(), (future.getAcceptToDoneTime() / future.getWindowSize()));
@@ -678,7 +693,7 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
             // during testing under high load -- java.io.IOException: Connection reset by peer
             // let's check to see if this session was requested to be closed
             if (isUnbinding() || isClosed()) {
-                logger.debug("Unbind/close was requested, ignoring exception thrown: {}", t);
+                logger.debug("Unbind/close was requested, ignoring exception thrown: {}", t.getMessage());
             } else {
                 this.sessionHandler.fireUnknownThrowable(t);
             }
@@ -699,15 +714,17 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
         // specific requests and make sure to cancel them
         if (this.sendWindow.getSize() > 0) {
             logger.trace("Channel closed and sendWindow has [{}] outstanding requests, some may need cancelled immediately", this.sendWindow.getSize());
-            Map<Integer,WindowFuture<Integer,PduRequest,PduResponse>> requests = this.sendWindow.createSortedSnapshot();
+            var requests = this.sendWindow.createSortedSnapshot();
             Throwable cause = new ClosedChannelException();
-            for (WindowFuture<Integer,PduRequest,PduResponse> future : requests.values()) {
+            for (var future : requests.values()) {
                 // is the caller waiting?
                 if (future.isCallerWaiting()) {
                     logger.debug("Caller waiting on request [{}], cancelling it with a channel closed exception", future.getKey());
                     try {
                         future.fail(cause);
-                    } catch (Exception e) { }
+                    } catch (Exception e) {
+                        logger.debug("further error on failing future: {}", future.getKey(), e);
+                    }
                 }
             }
         }
@@ -728,7 +745,7 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
         this.sessionHandler.firePduRequestExpired(future.getRequest());
     }
 
-    private void countSendRequestPdu(PduRequest pdu) {
+    private void countSendRequestPdu(PduRequest<?> pdu) {
         if (this.counters == null) {
             return;     // noop
         }
@@ -1001,10 +1018,10 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
     
     @Override
     public String[] dumpWindow() {
-        Map<Integer,WindowFuture<Integer,PduRequest,PduResponse>> sortedSnapshot = this.sendWindow.createSortedSnapshot();
+        var sortedSnapshot = this.sendWindow.createSortedSnapshot();
         String[] dump = new String[sortedSnapshot.size()];
         int i = 0;
-        for (WindowFuture<Integer,PduRequest,PduResponse> future : sortedSnapshot.values()) {
+        for (var future : sortedSnapshot.values()) {
             dump[i] = future.getRequest().toString();
             i++;
         }
