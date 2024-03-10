@@ -105,7 +105,7 @@ jobs:
         echo 'EOF' >> $GITHUB_ENV
         echo "VERSION=${VERSION}" >> $GITHUB_ENV
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       if: success() && github.ref == 'refs/heads/main'
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
