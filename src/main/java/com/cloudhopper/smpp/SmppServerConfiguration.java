@@ -58,6 +58,7 @@ public class SmppServerConfiguration extends SmppConnectionConfiguration {
     private long defaultRequestExpiryTimeout = SmppConstants.DEFAULT_REQUEST_EXPIRY_TIMEOUT;
     private long defaultWindowMonitorInterval = SmppConstants.DEFAULT_WINDOW_MONITOR_INTERVAL;
     private boolean defaultSessionCountersEnabled = false;
+    private boolean proxyProtocol = false;
 
     public SmppServerConfiguration() {
         super("0.0.0.0", 2775, SmppConstants.DEFAULT_BIND_TIMEOUT);
@@ -153,12 +154,20 @@ public class SmppServerConfiguration extends SmppConnectionConfiguration {
     }
 
     public void setSslConfiguration(SslConfiguration value) {
-	this.sslConfiguration = value;
-	setUseSsl(true);
+        this.sslConfiguration = value;
+        setUseSsl(true);
     }
 
     public SslConfiguration getSslConfiguration() {
-	return this.sslConfiguration;
+        return this.sslConfiguration;
+    }
+
+    public boolean isProxyProtocol() {
+        return proxyProtocol;
+    }
+
+    public void setProxyProtocol(boolean proxyProtocol) {
+        this.proxyProtocol = proxyProtocol;
     }
 
     /**

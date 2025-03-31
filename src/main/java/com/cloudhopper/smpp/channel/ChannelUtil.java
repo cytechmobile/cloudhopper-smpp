@@ -21,6 +21,8 @@ package com.cloudhopper.smpp.channel;
  */
 
 import io.netty.channel.Channel;
+import io.netty.util.AttributeKey;
+
 import java.net.InetSocketAddress;
 
 /**
@@ -29,6 +31,8 @@ import java.net.InetSocketAddress;
  * @author joelauer (twitter: @jjlauer or <a href="http://twitter.com/jjlauer" target=window>http://twitter.com/jjlauer</a>)
  */
 public class ChannelUtil {
+    public static final String ATTR_PROXY_CLIENT_IP = "proxiedClientIp";
+    public static final String ATTR_PROXY_CLIENT_PORT = "proxiedClientPort";
 
     /**
      * Create a name for the channel based on the remote host's IP and port.
@@ -38,25 +42,32 @@ public class ChannelUtil {
         if (channel == null || channel.remoteAddress() == null) {
             return "ChannelWasNull";
         }
+        var proxiedRemoteHost = getProxiedChannelOriginalRemoteHost(channel);
+        if (proxiedRemoteHost != null && !proxiedRemoteHost.isBlank()) {
+            int remotePort = getProxiedChannelOriginalRemotePort(channel);
+            return proxiedRemoteHost + ":" + remotePort;
+        }
         // create a channel name
-        if (channel.remoteAddress() instanceof InetSocketAddress) {
-            InetSocketAddress addr = (InetSocketAddress)channel.remoteAddress();
+        if (channel.remoteAddress() instanceof InetSocketAddress addr) {
             // just get the raw IP address
             String remoteHostAddr = addr.getAddress().getHostAddress();
             int remoteHostPort = addr.getPort();
             return remoteHostAddr + ":" + remoteHostPort;
-        } else {
-            return channel.remoteAddress().toString();
-        }        
+        }
+        return channel.remoteAddress().toString();
     }
 
     static public String getChannelRemoteHost(Channel channel) {
         if (channel == null || channel.remoteAddress() == null) {
             return null;
         }
+        // if channel has proxyClientIp attribute, use that
+        var proxiedClientHost = getProxiedChannelOriginalRemoteHost(channel);
+        if (proxiedClientHost != null && !proxiedClientHost.isBlank()) {
+            return proxiedClientHost;
+        }
         // create a channel name
-        if (channel.remoteAddress() instanceof InetSocketAddress) {
-            InetSocketAddress addr = (InetSocketAddress)channel.remoteAddress();
+        if (channel.remoteAddress() instanceof InetSocketAddress addr) {
             // just get the raw IP address
             return addr.getAddress().getHostAddress();
         }
@@ -67,13 +78,61 @@ public class ChannelUtil {
         if (channel == null || channel.remoteAddress() == null) {
             return 0;
         }
+        // if channel has proxyClientPort attribute, use that
+        int proxiedClientPort = getProxiedChannelOriginalRemotePort(channel);
+        if (proxiedClientPort > 0) {
+            return proxiedClientPort;
+        }
         // create a channel name
-        if (channel.remoteAddress() instanceof InetSocketAddress) {
-            InetSocketAddress addr = (InetSocketAddress)channel.remoteAddress();
+        if (channel.remoteAddress() instanceof InetSocketAddress addr) {
             // just get the raw IP address
             return addr.getPort();
         }
         return 0;
     }
 
+    public static boolean isProxied(Channel channel) {
+        var proxiedHost = getProxiedChannelOriginalRemoteHost(channel);
+        return proxiedHost != null && !proxiedHost.isBlank();
+    }
+
+    public static String getProxiedChannelOriginalRemoteHost(Channel channel) {
+        if (channel == null || channel.remoteAddress() == null) {
+            return null;
+        }
+        // if channel has proxyClientIp attribute, use that
+        var clientIpAttr = channel.attr(AttributeKey.valueOf(ATTR_PROXY_CLIENT_IP)).get();
+        if (clientIpAttr != null && clientIpAttr instanceof String clientIp && !clientIp.isBlank()) {
+            return clientIp;
+        }
+        return null;
+    }
+
+    public static String getProxiedChannelProxyHost(Channel channel) {
+        if (isProxied(channel) && channel.remoteAddress() instanceof InetSocketAddress addr) {
+            // just get the raw IP address
+            return addr.getAddress().getHostAddress();
+        }
+        return null;
+    }
+
+    public static int getProxiedChannelOriginalRemotePort(Channel channel) {
+        if (channel == null || channel.remoteAddress() == null) {
+            return 0;
+        }
+        // if channel has proxyClientIp attribute, use that
+        var clientPortAttr = channel.attr(AttributeKey.valueOf(ATTR_PROXY_CLIENT_PORT)).get();
+        if (clientPortAttr != null && clientPortAttr instanceof Integer clientPort) {
+            return clientPort;
+        }
+        return 0;
+    }
+
+    public static int getProxiedChannelProxyPort(Channel channel) {
+        if (isProxied(channel) && channel.remoteAddress() instanceof InetSocketAddress addr) {
+            // just get the raw IP address
+            return addr.getPort();
+        }
+        return 0;
+    }
 }

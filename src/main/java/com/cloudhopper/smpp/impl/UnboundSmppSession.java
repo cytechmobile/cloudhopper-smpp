@@ -24,7 +24,15 @@ import com.cloudhopper.smpp.SmppBindType;
 import com.cloudhopper.smpp.SmppConstants;
 import com.cloudhopper.smpp.SmppSessionConfiguration;
 import com.cloudhopper.smpp.channel.ChannelUtil;
-import com.cloudhopper.smpp.pdu.*;
+import com.cloudhopper.smpp.pdu.BaseBind;
+import com.cloudhopper.smpp.pdu.BaseBindResp;
+import com.cloudhopper.smpp.pdu.BindReceiver;
+import com.cloudhopper.smpp.pdu.BindTransceiver;
+import com.cloudhopper.smpp.pdu.BindTransmitter;
+import com.cloudhopper.smpp.pdu.EnquireLink;
+import com.cloudhopper.smpp.pdu.EnquireLinkResp;
+import com.cloudhopper.smpp.pdu.Pdu;
+import com.cloudhopper.smpp.pdu.PduResponse;
 import com.cloudhopper.smpp.type.LoggingOptions;
 import com.cloudhopper.smpp.type.SmppChannelException;
 import com.cloudhopper.smpp.type.SmppProcessingException;
@@ -160,6 +168,10 @@ public class UnboundSmppSession implements SmppSessionChannelListener {
         sessionConfiguration.setAddressRange(bindRequest.getAddressRange());
         sessionConfiguration.setHost(ChannelUtil.getChannelRemoteHost(channel));
         sessionConfiguration.setPort(ChannelUtil.getChannelRemotePort(channel));
+        if (ChannelUtil.isProxied(channel)) {
+            sessionConfiguration.setProxyHost(ChannelUtil.getProxiedChannelProxyHost(channel));
+            sessionConfiguration.setProxyPort(ChannelUtil.getProxiedChannelProxyPort(channel));
+        }
         sessionConfiguration.setInterfaceVersion(bindRequest.getInterfaceVersion());
 
         LoggingOptions loggingOptions = new LoggingOptions();
