@@ -81,7 +81,9 @@ public class SmppServerConnector extends LoggingChannelInboundHandlerAdapter {
         // add SSL handler
         if (server.getConfiguration().isUseSsl()) {
             SslConfiguration sslConfig = server.getConfiguration().getSslConfiguration();
-        if (sslConfig == null) throw new IllegalStateException("sslConfiguration must be set");
+            if (sslConfig == null) {
+                throw new IllegalStateException("sslConfiguration must be set");
+            }
             SslContextFactory factory = new SslContextFactory(sslConfig);
             SSLEngine sslEngine = factory.newSslEngine();
             sslEngine.setUseClientMode(false);

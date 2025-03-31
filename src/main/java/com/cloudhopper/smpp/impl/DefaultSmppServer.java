@@ -20,8 +20,18 @@ package com.cloudhopper.smpp.impl;
  * #L%
  */
 
-import com.cloudhopper.smpp.*;
-import com.cloudhopper.smpp.channel.*;
+import com.cloudhopper.smpp.SmppConstants;
+import com.cloudhopper.smpp.SmppServer;
+import com.cloudhopper.smpp.SmppServerConfiguration;
+import com.cloudhopper.smpp.SmppServerHandler;
+import com.cloudhopper.smpp.SmppSession;
+import com.cloudhopper.smpp.SmppSessionConfiguration;
+import com.cloudhopper.smpp.channel.ChannelUtil;
+import com.cloudhopper.smpp.channel.SmppChannelConstants;
+import com.cloudhopper.smpp.channel.SmppServerConnector;
+import com.cloudhopper.smpp.channel.SmppSessionLogger;
+import com.cloudhopper.smpp.channel.SmppSessionThreadRenamer;
+import com.cloudhopper.smpp.channel.SmppSessionWrapper;
 import com.cloudhopper.smpp.jmx.DefaultSmppServerMXBean;
 import com.cloudhopper.smpp.pdu.BaseBind;
 import com.cloudhopper.smpp.pdu.BaseBindResp;
@@ -32,7 +42,14 @@ import com.cloudhopper.smpp.transcoder.PduTranscoder;
 import com.cloudhopper.smpp.type.SmppChannelException;
 import com.cloudhopper.smpp.type.SmppProcessingException;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.*;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelException;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.group.ChannelGroup;
 import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -40,7 +57,10 @@ import io.netty.channel.oio.OioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.oio.OioServerSocketChannel;
+import io.netty.handler.codec.haproxy.HAProxyMessage;
+import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import io.netty.handler.timeout.WriteTimeoutHandler;
+import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -141,6 +161,20 @@ public class DefaultSmppServer implements SmppServer, DefaultSmppServerMXBean {
         this.serverBootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
             @Override
             public void initChannel(SocketChannel ch) throws Exception {
+                if (configuration.isProxyProtocol()) {
+                    ch.pipeline().addLast(new HAProxyMessageDecoder());
+                    ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
+                        @Override
+                        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+                            if (msg instanceof HAProxyMessage proxyMsg) {
+                                logger.debug("received proxy msg: {}", proxyMsg);
+                                ctx.channel().attr(AttributeKey.valueOf(ChannelUtil.ATTR_PROXY_CLIENT_IP)).set(proxyMsg.sourceAddress());
+                                proxyMsg.release();
+                            }
+                            super.channelRead(ctx, msg);
+                        }
+                    });
+                }
                 ch.pipeline().addLast(SmppChannelConstants.PIPELINE_SERVER_CONNECTOR_NAME, serverConnector);
             }
         });
