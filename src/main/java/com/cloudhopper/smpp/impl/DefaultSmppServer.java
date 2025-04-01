@@ -169,6 +169,7 @@ public class DefaultSmppServer implements SmppServer, DefaultSmppServerMXBean {
                             if (msg instanceof HAProxyMessage proxyMsg) {
                                 logger.debug("received proxy msg: {}", proxyMsg);
                                 ctx.channel().attr(AttributeKey.valueOf(ChannelUtil.ATTR_PROXY_CLIENT_IP)).set(proxyMsg.sourceAddress());
+                                ctx.channel().attr(AttributeKey.valueOf(ChannelUtil.ATTR_PROXY_CLIENT_PORT)).set(proxyMsg.sourcePort());
                                 proxyMsg.release();
                             }
                             super.channelRead(ctx, msg);
