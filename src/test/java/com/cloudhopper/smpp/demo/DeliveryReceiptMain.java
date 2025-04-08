@@ -21,9 +21,10 @@ package com.cloudhopper.smpp.demo;
  */
 
 import com.cloudhopper.smpp.util.DeliveryReceipt;
-import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.time.ZoneOffset;
 
 /**
  *
@@ -39,7 +40,7 @@ public class DeliveryReceiptMain {
 
         //DeliveryReceipt dlr = DeliveryReceipt.parseShortMessage("sub:001 id:4 dlvrd:001 done date:1006020051 stat:DELIVRD submit date:1006020051 err:000 text:", DateTimeZone.UTC, true);
 
-        DeliveryReceipt dlr = DeliveryReceipt.parseShortMessage("id:2E179B310EDE971B2760C72B7F026E1B submit date:20110314181534 done date:20110314181741 stat:DELIVRD err:0", DateTimeZone.UTC, false);
+        DeliveryReceipt dlr = DeliveryReceipt.parseShortMessage("id:2E179B310EDE971B2760C72B7F026E1B submit date:20110314181534 done date:20110314181741 stat:DELIVRD err:0", ZoneOffset.UTC, false);
 
         logger.debug("{}", dlr);
     }
