@@ -22,14 +22,15 @@ package com.cloudhopper.smpp.util;
 
 import com.cloudhopper.commons.util.StringUtil;
 import com.cloudhopper.smpp.SmppConstants;
-import java.util.Map;
-import java.util.TreeMap;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Date;
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * Utility class to represent a Delivery Receipt that may be contained within a
@@ -40,23 +41,17 @@ import org.slf4j.LoggerFactory;
  * parseable to an int via {@link Integer#parseInt(String)} then the
  * {@link #errorCode} property will remain what it was originally set as,
  * default(int) or in the case of
- * {@link #parseShortMessage(String, DateTimeZone)} -1.
+ * {@link #parseShortMessage(String, ZoneId)} -1.
  * 
  * @author joelauer (twitter: @jjlauer or <a href="http://twitter.com/jjlauer"
  *         target=window>http://twitter.com/jjlauer</a>)
  */
 public class DeliveryReceipt {
-	private static final Logger logger = LoggerFactory
-			.getLogger(DeliveryReceipt.class);
-
 	// template format of the dates included with delivery receipts
-	private static final DateTimeFormatter dateFormatTemplate = DateTimeFormat
-			.forPattern("yyMMddHHmm");
-	private static final DateTimeFormatter dateFormatTemplateWithSeconds = DateTimeFormat
-			.forPattern("yyMMddHHmmss");
+	private static final DateTimeFormatter dateFormatTemplate = DateTimeFormatter.ofPattern("yyMMddHHmm");
+	private static final DateTimeFormatter dateFormatTemplateWithSeconds = DateTimeFormatter.ofPattern("yyMMddHHmmss");
 	// an example of a 3rd format 20110303100008 (yyyyMMddHHmmss)
-	private static final DateTimeFormatter dateFormatTemplateWithFullYearAndSeconds = DateTimeFormat
-			.forPattern("yyyyMMddHHmmss");
+	private static final DateTimeFormatter dateFormatTemplateWithFullYearAndSeconds = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
 	// the "err" field cannot be longer than 3 chars
 	public static final int FIELD_ERR_MAX_LEN = 3;
@@ -77,9 +72,9 @@ public class DeliveryReceipt {
 	// field "dlvrd": number of messages delivered
 	private int deliveredCount;
 	// field "submit date": date message was originally submitted at
-	private DateTime submitDate;
+	private ZonedDateTime submitDate;
 	// field "done date": date message reached a final "done" state
-	private DateTime doneDate;
+	private ZonedDateTime doneDate;
 	// field "stat": final state of message
 	private byte state;
 	// field "err": network/smsc specific error code
@@ -93,32 +88,42 @@ public class DeliveryReceipt {
 	public DeliveryReceipt() {
 		setErrorCode(0);
 	}
+    @Deprecated
+    public DeliveryReceipt(
+            String messageId, int submitCount, int deliveredCount, DateTime submitDate, DateTime doneDate, byte state, int errorCode, String text) {
+        this(messageId, submitCount, deliveredCount, fromJoda(submitDate), fromJoda(doneDate), state, errorCode, text);
+    }
 
-	public DeliveryReceipt(String messageId, int submitCount,
-			int deliveredCount, DateTime submitDate, DateTime doneDate,
-			byte state, int errorCode, String text) {
-		this.messageId = messageId;
-		this.submitCount = submitCount;
-		this.deliveredCount = deliveredCount;
-		this.submitDate = submitDate;
-		this.doneDate = doneDate;
-		this.state = state;
-		setErrorCode(errorCode);
-		this.text = text;
-	}
+    @Deprecated
+    public DeliveryReceipt(
+            String messageId, int submitCount, int deliveredCount, DateTime submitDate, DateTime doneDate, byte state, String errorCode, String text) {
+        this(messageId, submitCount, deliveredCount, fromJoda(submitDate), fromJoda(doneDate), state, errorCode, text);
+    }
 
-	public DeliveryReceipt(String messageId, int submitCount,
-			int deliveredCount, DateTime submitDate, DateTime doneDate,
-			byte state, String errorCode, String text) {
-		this.messageId = messageId;
-		this.submitCount = submitCount;
-		this.deliveredCount = deliveredCount;
-		this.submitDate = submitDate;
-		this.doneDate = doneDate;
-		this.state = state;
-		setRawErrorCode(errorCode);
-		this.text = text;
-	}
+    public DeliveryReceipt(
+            String messageId, int submitCount, int deliveredCount, ZonedDateTime submitDate, ZonedDateTime doneDate, byte state, int errorCode, String text) {
+        this.messageId = messageId;
+        this.submitCount = submitCount;
+        this.deliveredCount = deliveredCount;
+        this.submitDate = submitDate;
+        this.doneDate = doneDate;
+        this.state = state;
+        setErrorCode(errorCode);
+        this.text = text;
+    }
+
+    public DeliveryReceipt(
+            String messageId, int submitCount, int deliveredCount, ZonedDateTime submitDate, ZonedDateTime doneDate,
+            byte state, String errorCode, String text) {
+        this.messageId = messageId;
+        this.submitCount = submitCount;
+        this.deliveredCount = deliveredCount;
+        this.submitDate = submitDate;
+        this.doneDate = doneDate;
+        this.state = state;
+        setRawErrorCode(errorCode);
+        this.text = text;
+    }
 
 	public int getDeliveredCount() {
 		return deliveredCount;
@@ -158,11 +163,11 @@ public class DeliveryReceipt {
 		}
 	}
 
-	public DateTime getDoneDate() {
+	public ZonedDateTime getDoneDate() {
 		return doneDate;
 	}
 
-	public void setDoneDate(DateTime finalDate) {
+	public void setDoneDate(ZonedDateTime finalDate) {
 		this.doneDate = finalDate;
 	}
 
@@ -210,11 +215,11 @@ public class DeliveryReceipt {
 		this.submitCount = submitCount;
 	}
 
-	public DateTime getSubmitDate() {
+	public ZonedDateTime getSubmitDate() {
 		return submitDate;
 	}
 
-	public void setSubmitDate(DateTime submitDate) {
+	public void setSubmitDate(ZonedDateTime submitDate) {
 		this.submitDate = submitDate;
 	}
 
@@ -241,14 +246,14 @@ public class DeliveryReceipt {
 		if (this.submitDate == null) {
 			buf.append("0000000000");
 		} else {
-			buf.append(dateFormatTemplate.print(this.submitDate));
+			buf.append(dateFormatTemplate.format(this.submitDate));
 		}
 		buf.append(" ");
 		buf.append(FIELD_DONE_DATE);
 		if (this.doneDate == null) {
 			buf.append("0000000000");
 		} else {
-			buf.append(dateFormatTemplate.print(this.doneDate));
+			buf.append(dateFormatTemplate.format(this.doneDate));
 		}
 		buf.append(" ");
 		buf.append(FIELD_STAT);
@@ -260,7 +265,7 @@ public class DeliveryReceipt {
 		buf.append(FIELD_TEXT);
 		if (this.text != null) {
 			if (this.text.length() > 20) {
-				buf.append(this.text.substring(0, 20));
+				buf.append(this.text, 0, 20);
 			} else {
 				buf.append(this.text);
 			}
@@ -319,19 +324,17 @@ public class DeliveryReceipt {
 			return false;
 	}
 
-	static private DateTime parseDateTimeHelper(String value, DateTimeZone zone) {
+	private static ZonedDateTime parseDateTimeHelper(String value, ZoneId zone) {
 		if (value == null) {
 			return null;
 		}
 		// pick the correct template based on length
 		if (value.length() == 14) {
-			return dateFormatTemplateWithFullYearAndSeconds.withZone(zone)
-					.parseDateTime(value);
+			return ZonedDateTime.parse(value, dateFormatTemplateWithFullYearAndSeconds.withZone(zone));
 		} else if (value.length() == 12) {
-			return dateFormatTemplateWithSeconds.withZone(zone).parseDateTime(
-					value);
+			return ZonedDateTime.parse(value, dateFormatTemplateWithSeconds.withZone(zone));
 		} else {
-			return dateFormatTemplate.withZone(zone).parseDateTime(value);
+			return ZonedDateTime.parse(value, dateFormatTemplate.withZone(zone));
 		}
 	}
 
@@ -344,14 +347,18 @@ public class DeliveryReceipt {
 		}
 	}
 
-	static public DeliveryReceipt parseShortMessage(String shortMessage,
-			DateTimeZone zone) throws DeliveryReceiptException {
+	public static DeliveryReceipt parseShortMessage(String shortMessage, ZoneId zone) throws DeliveryReceiptException {
 		return parseShortMessage(shortMessage, zone, true);
 	}
 
+    @Deprecated(forRemoval = true)
+    public static DeliveryReceipt parseShortMessage(String shortMessage, DateTimeZone zone) throws DeliveryReceiptException {
+        return parseShortMessage(shortMessage, ZoneId.of(zone.getID()), true);
+    }
+
 	/**
 	 * Parses the text of the short message and creates a DeliveryReceipt from
-	 * the fields. This method is lenient as possible. The order of the fields
+	 * the fields. This method is as lenient as possible. The order of the fields
 	 * does not matter, as well as permitting some fields to be optional.
 	 * 
 	 * @param shortMessage
@@ -359,10 +366,13 @@ public class DeliveryReceipt {
 	 * @return
 	 * @throws DeliveryReceiptException
 	 */
-	static public DeliveryReceipt parseShortMessage(String shortMessage,
-			DateTimeZone zone, boolean checkMissingFields)
-			throws DeliveryReceiptException {
+	public static DeliveryReceipt parseShortMessage(String shortMessage, ZoneId zone, boolean checkMissingFields) throws DeliveryReceiptException {
 		return parseShortMessage(shortMessage, zone, checkMissingFields, true);
+	}
+
+    @Deprecated(forRemoval = true)
+    public static DeliveryReceipt parseShortMessage(String shortMessage, DateTimeZone zone, boolean checkMissingFields) throws DeliveryReceiptException {
+		return parseShortMessage(shortMessage, ZoneId.of(zone.getID()), checkMissingFields, true);
 	}
 
 	/**
@@ -375,22 +385,19 @@ public class DeliveryReceipt {
 	 *
 	 * @param shortMessage the body of the delivery receipt
 	 * @param zone the time zone to use for interpreting time stamps
-	 * @param checkMissingFields whether to throw exception if fields were missing
+	 * @param checkMissingFields whether to throw exception if fields were missing.
 	 * @param validateFields whether to throw exception if fields cannot be parsed
 	 * @return a DeliveryReceipt object from the parsed information in the short message
 	 * @throws DeliveryReceiptException if checkMissingFields is true and there are fields missing,
 	 * or if validateFields is true and fields cannot be parsed
 	 */
-	static public DeliveryReceipt parseShortMessage(String shortMessage,
-				DateTimeZone zone, boolean checkMissingFields,
-				boolean validateFields)
-			throws DeliveryReceiptException {
+	public static DeliveryReceipt parseShortMessage(
+			String shortMessage, ZoneId zone, boolean checkMissingFields, boolean validateFields) throws DeliveryReceiptException {
 		// for case insensitivity, convert to lowercase (normalized text)
 		String normalizedText = shortMessage.toLowerCase();
 
 		// create a new DLR with fields set to "uninitialized" values
-		DeliveryReceipt dlr = new DeliveryReceipt(null, -1, -1, null, null,
-				(byte) -1, -1, null);
+		DeliveryReceipt dlr = new DeliveryReceipt(null, -1, -1, (ZonedDateTime) null, null, (byte) -1, -1, null);
 		TreeMap<Integer, String> fieldsByStartPos = new TreeMap<Integer, String>();
 
 		// find location of all possible fields in text of message and add to
@@ -420,11 +427,10 @@ public class DeliveryReceipt {
 
 			// calculate the positions for the substring to extract the field
 			// value
-			int fieldLabelStartPos = curFieldEntry.getKey().intValue();
+			int fieldLabelStartPos = curFieldEntry.getKey();
 			int startPos = fieldLabelStartPos
 					+ curFieldEntry.getValue().length();
-			int endPos = (nextFieldEntry != null ? nextFieldEntry.getKey()
-					.intValue() : normalizedText.length());
+			int endPos = (nextFieldEntry != null ? nextFieldEntry.getKey() : normalizedText.length());
 
 			String fieldLabel = curFieldEntry.getValue();
 			String fieldValue = shortMessage.substring(startPos, endPos).trim();
@@ -440,9 +446,7 @@ public class DeliveryReceipt {
 						dlr.submitCount = Integer.parseInt(fieldValue);
 					} catch (NumberFormatException e) {
                         if (validateFields) {
-                            throw new DeliveryReceiptException(
-                                    "Unable to convert [sub] field with value ["
-                                            + fieldValue + "] into an integer");
+                            throw new DeliveryReceiptException("Unable to convert [sub] field with value [" + fieldValue + "] into an integer");
                         }
 					}
 				} else if (fieldLabel.equalsIgnoreCase(FIELD_DLVRD)) {
@@ -450,54 +454,41 @@ public class DeliveryReceipt {
 						dlr.deliveredCount = Integer.parseInt(fieldValue);
 					} catch (NumberFormatException e) {
                         if (validateFields) {
-                            throw new DeliveryReceiptException(
-                                    "Unable to convert [dlvrd] field with value ["
-                                            + fieldValue + "] into an integer");
+                            throw new DeliveryReceiptException("Unable to convert [dlvrd] field with value [" + fieldValue + "] into an integer");
                         }
 					}
 				} else if (fieldLabel.equalsIgnoreCase(FIELD_SUBMIT_DATE)) {
 					try {
 						dlr.submitDate = parseDateTimeHelper(fieldValue, zone);
-					} catch (IllegalArgumentException e) {
+					} catch (Exception e) {
                         if (validateFields) {
-                            throw new DeliveryReceiptException(
-                                    "Unable to convert [submit date] field with value ["
-                                            + fieldValue
-                                            + "] into a datetime object");
+                            throw new DeliveryReceiptException("Unable to convert [submit date] field with value [" + fieldValue + "] into a datetime object");
                         }
 					}
 				} else if (fieldLabel.equalsIgnoreCase(FIELD_DONE_DATE)) {
 					try {
 						dlr.doneDate = parseDateTimeHelper(fieldValue, zone);
-					} catch (IllegalArgumentException e) {
+					} catch (Exception e) {
                         if (validateFields) {
-                            throw new DeliveryReceiptException(
-                                    "Unable to convert [done date] field with value ["
-                                            + fieldValue
-                                            + "] into a datetime object");
+                            throw new DeliveryReceiptException("Unable to convert [done date] field with value [" + fieldValue + "] into a datetime object");
                         }
 					}
 				} else if (fieldLabel.equalsIgnoreCase(FIELD_STAT)) {
 					dlr.state = DeliveryReceipt.toState(fieldValue);
 					if (dlr.state < 0 && validateFields) {
-						throw new DeliveryReceiptException(
-								"Unable to convert [stat] field with value ["
-										+ fieldValue + "] into a valid state");
+						throw new DeliveryReceiptException("Unable to convert [stat] field with value [" + fieldValue + "] into a valid state");
 					}
 				} else if (fieldLabel.equalsIgnoreCase(FIELD_ERR)) {
 					if (!validateFields || isValidErrorCode(fieldValue)) {
                         dlr.setRawErrorCode(fieldValue);
                     } else {
-                        throw new DeliveryReceiptException(
-                                "The [err] field was not of a valid lengh of <= "
-                                        + FIELD_ERR_MAX_LEN);
+                        throw new DeliveryReceiptException("The [err] field was not of a valid lengh of <= " + FIELD_ERR_MAX_LEN);
                     }
 				} else if (fieldLabel.equalsIgnoreCase(FIELD_TEXT)) {
 					dlr.text = fieldValue;
 				} else {
 				    if (validateFields) {
-                        throw new DeliveryReceiptException("Unsupported field ["
-                                + fieldValue + "] found");
+                        throw new DeliveryReceiptException("Unsupported field [" + fieldValue + "] found");
                     }
 				}
 			}
@@ -507,43 +498,42 @@ public class DeliveryReceipt {
 
 		if (checkMissingFields) {
 			if (StringUtil.isEmpty(dlr.messageId)) {
-				throw new DeliveryReceiptException(
-						"Unable to find [id] field or empty value in delivery receipt message");
+				throw new DeliveryReceiptException("Unable to find [id] field or empty value in delivery receipt message");
 			}
 
 			if (dlr.submitCount < 0) {
-				throw new DeliveryReceiptException(
-						"Unable to find [sub] field or empty value in delivery receipt message");
+				throw new DeliveryReceiptException("Unable to find [sub] field or empty value in delivery receipt message");
 			}
 
 			if (dlr.deliveredCount < 0) {
-				throw new DeliveryReceiptException(
-						"Unable to find [dlvrd] field or empty value in delivery receipt message");
+				throw new DeliveryReceiptException("Unable to find [dlvrd] field or empty value in delivery receipt message");
 			}
 
 			if (dlr.submitDate == null) {
-				throw new DeliveryReceiptException(
-						"Unable to find [submit date] field or empty value in delivery receipt message");
+				throw new DeliveryReceiptException("Unable to find [submit date] field or empty value in delivery receipt message");
 			}
 
 			if (dlr.doneDate == null) {
-				throw new DeliveryReceiptException(
-						"Unable to find [done date] field or empty value in delivery receipt message");
+				throw new DeliveryReceiptException("Unable to find [done date] field or empty value in delivery receipt message");
 			}
 
 			if (dlr.state < 0) {
-				throw new DeliveryReceiptException(
-						"Unable to find [stat] field or empty value in delivery receipt message");
+				throw new DeliveryReceiptException("Unable to find [stat] field or empty value in delivery receipt message");
 			}
 
 			if (StringUtil.isEmpty(dlr.rawErrorCode) && dlr.errorCode < 0) {
-				throw new DeliveryReceiptException(
-						"Unable to find [err] field or empty value in delivery receipt message");
+				throw new DeliveryReceiptException("Unable to find [err] field or empty value in delivery receipt message");
 			}
 		}
 
 		return dlr;
 	}
+
+    @Deprecated(forRemoval = true)
+    public static DeliveryReceipt parseShortMessage(
+            String shortMessage, DateTimeZone zone, boolean checkMissingFields, boolean validateFields) throws DeliveryReceiptException {
+        return parseShortMessage(shortMessage, ZoneId.of(zone.getID()), checkMissingFields, validateFields);
+    }
 
 	static public byte toState(String stateText) {
 		if (stateText == null) {
@@ -614,4 +604,9 @@ public class DeliveryReceipt {
 			throws NumberFormatException {
 		return Long.parseLong(value, 16);
 	}
+
+    public static ZonedDateTime fromJoda(DateTime dt) {
+        return ZonedDateTime.of(dt.getYear(), dt.getMonthOfYear(), dt.getDayOfMonth(), dt.getHourOfDay(), dt.getMinuteOfHour(), dt.getSecondOfMinute(), 0,
+                ZoneId.of(dt.getZone().getID()));
+    }
 }
