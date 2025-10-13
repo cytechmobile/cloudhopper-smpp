@@ -23,7 +23,7 @@ jobs:
         GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
       run: |
         echo "found successful dependabot PR, merging it"
-        gh pr merge --rebase
+        gh pr merge --auto --rebase
     - name: Prepare Release
       if: success() && github.ref == 'refs/heads/main'
       run: |
