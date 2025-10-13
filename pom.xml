@@ -18,8 +18,8 @@
 	</scm>
 
 	<properties>
-		<maven.compiler.source>17</maven.compiler.source>
-		<maven.compiler.target>17</maven.compiler.target>
+		<maven.compiler.source>21</maven.compiler.source>
+		<maven.compiler.target>21</maven.compiler.target>
 		<ch-commons-group>com.cloudhopper</ch-commons-group>
 		<ch-commons-util.version>6.0.4</ch-commons-util.version>
 		<ch-commons-charset.version>3.0.2</ch-commons-charset.version>
