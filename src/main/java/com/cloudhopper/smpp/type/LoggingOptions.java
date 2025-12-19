@@ -29,10 +29,11 @@ import java.util.Set;
  * @author joelauer (twitter: @jjlauer or <a href="http://twitter.com/jjlauer" target=window>http://twitter.com/jjlauer</a>)
  */
 public class LoggingOptions {
-    private boolean logPdu;
-    private boolean logBytes;
-    public String loggerName;
-    private Set<Integer> excludeLogPdus;
+    protected boolean logPdu;
+    protected boolean logBytes;
+    protected String loggerName;
+    protected String logParamPrefix;
+    protected Set<Integer> excludeLogPdus;
 
     public LoggingOptions() {
         this.logPdu = true;
@@ -69,6 +70,14 @@ public class LoggingOptions {
 
     public void setLoggerName(String loggerName) {
         this.loggerName = loggerName;
+    }
+
+    public String getLogParamPrefix() {
+        return logParamPrefix;
+    }
+
+    public void setLogParamPrefix(String logParamPrefix) {
+        this.logParamPrefix = logParamPrefix;
     }
 
     public Set<Integer> getExcludeLogPdus() {

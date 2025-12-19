@@ -58,7 +58,7 @@ public class SmppSessionLogger extends ChannelDuplexHandler {
 
     public SmppSessionLogger(String name, LoggingOptions options) {
         this.options = options;
-        this.logger = LoggerFactory.getLogger(options.loggerName != null ? options.loggerName : name);
+        this.logger = LoggerFactory.getLogger(options.getLoggerName() != null ? options.getLoggerName() : name);
     }
 
     /**
@@ -84,7 +84,8 @@ public class SmppSessionLogger extends ChannelDuplexHandler {
     protected void log(Direction direction, Object obj) {
         // handle logging of message events (PDU, ByteBuf, etc.)
         if (this.options.isLogBytesEnabled() && obj instanceof ByteBuf buffer) {
-            logger.info("{} bytes: [{}]", direction == Direction.UP ? "read" : "write", ByteBufUtil.hexDump(buffer));
+            logger.info("{} {} bytes: [{}]", options.getLogParamPrefix() == null ? "" : options.getLogParamPrefix(),
+                    direction == Direction.UP ? "read" : "write", ByteBufUtil.hexDump(buffer));
         }
     }
 
