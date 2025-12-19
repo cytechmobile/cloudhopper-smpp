@@ -50,10 +50,11 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.group.ChannelGroup;
 import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.oio.OioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.oio.OioServerSocketChannel;
@@ -107,9 +108,7 @@ public class DefaultSmppServer implements SmppServer, DefaultSmppServerMXBean {
      *      and creating/destroying sessions.
      */
     public DefaultSmppServer(SmppServerConfiguration configuration, SmppServerHandler serverHandler) {
-        this(configuration, serverHandler, null,
-                configuration.isNonBlockingSocketsEnabled() ? new NioEventLoopGroup() : new OioEventLoopGroup(),
-                configuration.isNonBlockingSocketsEnabled() ? new NioEventLoopGroup() : new OioEventLoopGroup());
+        this(configuration, serverHandler, null, new NioEventLoopGroup(), new NioEventLoopGroup());
     }
 
     /**
@@ -142,7 +141,9 @@ public class DefaultSmppServer implements SmppServer, DefaultSmppServerMXBean {
         this.serverBootstrap = new ServerBootstrap();
 
         // a factory for creating channels (connections)
-        if (configuration.isNonBlockingSocketsEnabled()) {
+        if (bossGroup instanceof EpollEventLoopGroup) {
+            this.serverBootstrap.channel(EpollServerSocketChannel.class);
+        } else if (configuration.isNonBlockingSocketsEnabled()) {
             this.serverBootstrap.channel(NioServerSocketChannel.class);
         } else {
             this.serverBootstrap.channel(OioServerSocketChannel.class);
