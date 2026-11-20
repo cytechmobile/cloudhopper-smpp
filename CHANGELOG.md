@@ -1,5 +1,8 @@
 # Release Notes
 
+## 7.3.1 (2026-11-20)
+* 
+
 ## 7.3.0 (2026-11-20)
 
 - SMPP server PDU logs now include the client system ID and IP address, including the original client IP for PROXY protocol connections.
