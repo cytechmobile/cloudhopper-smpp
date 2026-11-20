@@ -22,19 +22,26 @@ package com.cloudhopper.smpp.impl;
 
 // third party imports
 
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.cloudhopper.smpp.*;
 import com.cloudhopper.smpp.pdu.BaseBind;
 import com.cloudhopper.smpp.pdu.BaseBindResp;
+import com.cloudhopper.smpp.pdu.BindTransceiver;
 import com.cloudhopper.smpp.tlv.Tlv;
 import com.cloudhopper.smpp.type.SmppBindException;
 import com.cloudhopper.smpp.type.SmppChannelException;
 import com.cloudhopper.smpp.type.SmppProcessingException;
 import com.cloudhopper.smpp.type.SmppTimeoutException;
+import io.netty.buffer.ByteBufUtil;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.DataInputStream;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 
 // my imports
@@ -143,6 +150,57 @@ public class DefaultSmppServerTest {
             Assert.assertEquals(false, serverSession0.isBound());
         } finally {
             server0.destroy();
+        }
+    }
+
+    @Test
+    public void proxiedBindLogsOriginatingIp() throws Exception {
+        SmppServerConfiguration configuration = createSmppServerConfiguration();
+        configuration.setProxyProtocol(true);
+        DefaultSmppServer server = new DefaultSmppServer(configuration, serverHandler);
+        var unboundLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(UnboundSmppSession.class);
+        var boundLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(DefaultSmppSession.class);
+        var bindRequests = new ListAppender<ILoggingEvent>();
+        var bindResponses = new ListAppender<ILoggingEvent>();
+        bindRequests.start();
+        bindResponses.start();
+        unboundLogger.addAppender(bindRequests);
+        boundLogger.addAppender(bindResponses);
+        try {
+            server.start();
+            try (Socket socket = new Socket("127.0.0.1", PORT)) {
+                socket.setSoTimeout(5000);
+                String proxyHeader = "PROXY TCP4 192.0.2.42 127.0.0.1 45678 " + PORT + "\r\n";
+                socket.getOutputStream().write(proxyHeader.getBytes(StandardCharsets.US_ASCII));
+
+                var bind = new BindTransceiver();
+                bind.setSystemId(SYSTEMID);
+                bind.setPassword(PASSWORD);
+                bind.setSequenceNumber(1);
+                var encodedBind = server.getTranscoder().encode(bind);
+                try {
+                    socket.getOutputStream().write(ByteBufUtil.getBytes(encodedBind));
+                } finally {
+                    encodedBind.release();
+                }
+
+                var response = new DataInputStream(socket.getInputStream());
+                response.readInt();
+                Assert.assertEquals(SmppConstants.CMD_ID_BIND_TRANSCEIVER_RESP, response.readInt());
+                Assert.assertEquals(SmppConstants.STATUS_OK, response.readInt());
+            }
+
+            String logContext = "systemId=" + SYSTEMID + " clientIp=192.0.2.42 ";
+            Assert.assertTrue(bindRequests.list.stream().map(ILoggingEvent::getFormattedMessage)
+                    .anyMatch(message -> message.startsWith(logContext + "received PDU: bind_transceiver")
+                            && !message.contains(PASSWORD)));
+            Assert.assertTrue(bindResponses.list.stream().map(ILoggingEvent::getFormattedMessage)
+                    .anyMatch(message -> message.startsWith(logContext + "send PDU: ")
+                            && message.contains("bind_transceiver_resp")));
+        } finally {
+            server.destroy();
+            unboundLogger.detachAppender(bindRequests);
+            boundLogger.detachAppender(bindResponses);
         }
     }
 
