@@ -86,6 +86,7 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
     // the timestamp when we became "bound"
     private final AtomicLong boundTime;
     private final SmppSessionConfiguration configuration;
+    private final String pduLogContext;
     private final Channel channel;
     private SmppSessionHandler sessionHandler;
     private final SequenceNumber sequenceNumber;
@@ -148,6 +149,8 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
         this.localType = localType;
         this.state = new AtomicInteger(STATE_OPEN);
         this.configuration = configuration;
+        this.pduLogContext = localType == Type.SERVER
+                ? serverPduLogContext(configuration.getSystemId(), configuration.getHost()) : "";
         this.logger = LoggerFactory.getLogger(configuration.getLoggingOptions().getLoggerName() != null ? configuration.getLoggingOptions().getLoggerName() : DefaultSmppSession.class.getCanonicalName());
         this.channel = channel;
         this.boundTime = new AtomicLong(0);
@@ -174,6 +177,12 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
         }
     }
     
+    static String serverPduLogContext(String systemId, String clientIp) {
+        String logSystemId = systemId == null || systemId.isBlank() ? "-"
+                : systemId.replace('\r', '_').replace('\n', '_');
+        return "systemId=" + logSystemId + " clientIp=" + (clientIp == null ? "-" : clientIp) + " ";
+    }
+
     public void registerMBean(String objectName) {
         // register the this queue manager as an mbean
         try {
@@ -522,7 +531,7 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
         
         if(this.sessionHandler instanceof SmppSessionListener) {
             if(!((SmppSessionListener)this.sessionHandler).firePduDispatch(pdu)) {
-                logger.info("dispatched request PDU discarded: {}", pdu);
+                logger.info("{}dispatched request PDU discarded: {}", pduLogContext, pdu);
                 future.cancel(); //@todo probably throwing exception here is better solution?
                 return future;
             }
@@ -531,7 +540,7 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
         // we need to log the PDU after encoding since some things only happen
         // during the encoding process such as looking up the result message
         if (configuration.getLoggingOptions().isLogPduEnabled(pdu)) {
-            logger.info("{} send PDU: {}", synchronous ? "sync" : "async", pdu);
+            logger.info("{}{} send PDU: {}", pduLogContext, synchronous ? "sync" : "async", pdu);
         }
 
         // write the pdu out & wait timeout amount of time
@@ -574,7 +583,7 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
         
         if(this.sessionHandler instanceof SmppSessionListener) {
             if(!((SmppSessionListener)this.sessionHandler).firePduDispatch(pdu)) {
-                logger.info("dispatched response PDU discarded: {}", pdu);
+                logger.info("{}dispatched response PDU discarded: {}", pduLogContext, pdu);
                 return;
             }
         }
@@ -585,7 +594,7 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
         // we need to log the PDU after encoding since some things only happen
         // during the encoding process such as looking up the result message
         if (configuration.getLoggingOptions().isLogPduEnabled(pdu)) {
-            logger.info("send PDU: {}", pdu);
+            logger.info("{}send PDU: {}", pduLogContext, pdu);
         }
 
         // write the pdu out & wait timeout amount of time
@@ -616,12 +625,12 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
     @Override
     public void firePduReceived(Pdu pdu) {
         if (configuration.getLoggingOptions().isLogPduEnabled(pdu)) {
-            logger.info("received PDU: {}", pdu);
+            logger.info("{}received PDU: {}", pduLogContext, pdu);
         }
 
         if(this.sessionHandler instanceof SmppSessionListener) {
             if(!((SmppSessionListener)this.sessionHandler).firePduReceived(pdu)){
-                logger.info("received PDU discarded: {}", pdu);
+                logger.info("{}received PDU discarded: {}", pduLogContext, pdu);
                 return;
             }
         }
@@ -638,7 +647,7 @@ public class DefaultSmppSession implements SmppServerSession, SmppSessionChannel
                 try {
                     sendResponsePdu(responsePdu, startTime);
                 } catch (Exception e) {
-                    logger.error("Unable to cleanly return response PDU: {}", responsePdu, e);
+                    logger.error("{}Unable to cleanly return response PDU: {}", pduLogContext, responsePdu, e);
                 }
             }
         } else {

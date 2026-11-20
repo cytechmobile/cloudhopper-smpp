@@ -61,6 +61,7 @@ public class UnboundSmppSession implements SmppSessionChannelListener {
     private final Channel channel;
     private final BindTimeoutTask bindTimeoutTask;
     private final DefaultSmppServer server;
+    private String bindSystemId;
 
     public UnboundSmppSession(String channelName, Channel channel, DefaultSmppServer server) {
         this.channelName = channelName;
@@ -74,14 +75,10 @@ public class UnboundSmppSession implements SmppSessionChannelListener {
     // called when a PDU is received and decoded on the channel
     @Override
     public void firePduReceived(Pdu pdu) {
-        // always log the PDU received on an unbound session
-        logger.info("received PDU: {}", pdu);
-
-        // only bind and enquire_link requests are permitted
-        if (pdu instanceof BaseBind) {
-            // delegate any bind request to the server handler
-            // variables we track for a successful bind request
-            BaseBind bindRequest = (BaseBind)pdu;
+        if (pdu instanceof BaseBind<?> bindRequest) {
+            bindSystemId = bindRequest.getSystemId();
+            String logContext = pduLogContext();
+            logger.info("{}received PDU: {} sequenceNumber={}", logContext, pdu.getName(), pdu.getSequenceNumber());
 
             // create a default session configuration based on this bind request
             SmppSessionConfiguration sessionConfiguration = createSessionConfiguration(bindRequest);
@@ -93,7 +90,7 @@ public class UnboundSmppSession implements SmppSessionChannelListener {
                 // delegate the bind request upstream to server handler
                 this.server.bindRequested(sessionId, sessionConfiguration, bindRequest);
             } catch (SmppProcessingException e) {
-                logger.warn("Bind request rejected or failed for connection [{}] with error [{}]", channelName, e.getMessage());
+                logger.warn("{}Bind request rejected or failed for connection [{}] with error [{}]", logContext, channelName, e.getMessage());
                 // create a failed bind response and send back to connection
                 BaseBindResp bindResponse = server.createBindResponse(bindRequest, e.getErrorCode());
                 this.sendResponsePdu(bindResponse);
@@ -113,7 +110,7 @@ public class UnboundSmppSession implements SmppSessionChannelListener {
                 // create a new a new session and tie the bind response to it
                 server.createSession(sessionId, channel, sessionConfiguration, preparedBindResponse);
             } catch (SmppProcessingException e) {
-                logger.warn("Bind request was approved, but createSession failed for connection [{}] with error [{}]", channelName, e.getMessage());
+                logger.warn("{}Bind request was approved, but createSession failed for connection [{}] with error [{}]", logContext, channelName, e.getMessage());
                 // create a failed bind response and send back to connection
                 BaseBindResp bindResponse = server.createBindResponse(bindRequest, e.getErrorCode());
                 this.sendResponsePdu(bindResponse);
@@ -121,13 +118,18 @@ public class UnboundSmppSession implements SmppSessionChannelListener {
                 closeChannelAndCancelTimer();
                 return;
             }
-        } else if (pdu instanceof EnquireLink) {
+            return;
+        }
+
+        String logContext = pduLogContext();
+        logger.info("{}received PDU: {}", logContext, pdu);
+        if (pdu instanceof EnquireLink) {
             EnquireLinkResp response = ((EnquireLink) pdu).createResponse();
-            logger.info("Responding to enquire_link with response [{}]", response);
+            logger.info("{}Responding to enquire_link with response [{}]", logContext, response);
             this.sendResponsePdu(response);
             return;
         } else {
-            logger.warn("Only bind or enquire_link requests are permitted on new connections, closing connection [{}]", channelName);
+            logger.warn("{}Only bind or enquire_link requests are permitted on new connections, closing connection [{}]", logContext, channelName);
 
             // FIXME: we could create a response with an error and THEN close the connection...
 
@@ -197,13 +199,18 @@ public class UnboundSmppSession implements SmppSessionChannelListener {
         return sessionConfiguration;
     }
 
+    private String pduLogContext() {
+        return DefaultSmppSession.serverPduLogContext(bindSystemId, ChannelUtil.getChannelRemoteHost(channel));
+    }
+
     public void sendResponsePdu(PduResponse pdu) {
+        String logContext = pduLogContext();
         try {
             // encode the pdu into a buffer
             ByteBuf buffer = server.getTranscoder().encode(pdu);
 
             // always log the PDU
-            logger.info("send PDU: {}", pdu);
+            logger.info("{}send PDU: {}", logContext, pdu);
 
             // write the pdu out & wait till its written
             ChannelFuture channelFuture = this.channel.writeAndFlush(buffer).await();
@@ -215,7 +222,7 @@ public class UnboundSmppSession implements SmppSessionChannelListener {
 		else throw new SmppChannelException("ChannelFuture failed without cause.");
             }
         } catch (Exception e) {
-            logger.error("Fatal exception thrown while attempting to send response PDU: {}", e.getMessage());
+            logger.error("{}Fatal exception thrown while attempting to send response PDU: {}", logContext, e.getMessage());
         }
     }
 
